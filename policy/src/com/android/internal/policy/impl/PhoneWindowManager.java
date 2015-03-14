@@ -4633,7 +4633,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                         }
                     }
 
-                    if ((result & ACTION_PASS_TO_USER) == 0) {
+                    if ((result & ACTION_PASS_TO_USER) == 0 && !isWakeKey) {
                         // If we aren't passing to the user and no one else
                         // handled it send it to the session manager to figure
                         // out.

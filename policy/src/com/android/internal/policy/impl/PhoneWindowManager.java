@@ -550,6 +550,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private boolean mScreenshotChordPowerKeyTriggered;
     private long mScreenshotChordPowerKeyTime;
     private boolean mVolumeWakeScreen;
+	private	boolean mVolumeWakeTriggered;
 
     /* The number of steps between min and max brightness */
     private static final int BRIGHTNESS_STEPS = 10;
@@ -4573,6 +4574,16 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             case KeyEvent.KEYCODE_VOLUME_DOWN:
             case KeyEvent.KEYCODE_VOLUME_UP:
             case KeyEvent.KEYCODE_VOLUME_MUTE: {
+                // Eat all down & up keys when using volume wake. 	4966
+                // This disables volume control, music control, and "beep" on key up. 	4967
+                if (isWakeKey && mVolumeWakeScreen) {
+                        mVolumeWakeTriggered = true;
+                        break;
+                } else if (mVolumeWakeTriggered && !down) {
+                        result &= ~ACTION_PASS_TO_USER;
+                        mVolumeWakeTriggered = false;
+                        break;
+                }
                 if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
                     if (down) {
                         if (interactive && !mScreenshotChordVolumeDownKeyTriggered
@@ -4633,7 +4644,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                         }
                     }
 
-                    if ((result & ACTION_PASS_TO_USER) == 0 && !isWakeKey) {
+                    if ((result & ACTION_PASS_TO_USER) == 0) {
                         // If we aren't passing to the user and no one else
                         // handled it send it to the session manager to figure
                         // out.
@@ -4813,9 +4824,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             // ignore volume keys unless docked
             case KeyEvent.KEYCODE_VOLUME_UP:
             case KeyEvent.KEYCODE_VOLUME_DOWN:
-                if (mVolumeWakeScreen) {
-                    return true;
-                }
+                return mVolumeWakeScreen;
+
             case KeyEvent.KEYCODE_VOLUME_MUTE:
                 return mDockMode != Intent.EXTRA_DOCK_STATE_UNDOCKED;
 

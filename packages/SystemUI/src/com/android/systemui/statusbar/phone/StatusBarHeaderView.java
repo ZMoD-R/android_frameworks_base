@@ -18,11 +18,7 @@ package com.android.systemui.statusbar.phone;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
-import android.content.ContentUris;
 import android.content.Context;
-import android.net.Uri;
-import android.os.Handler;
-import android.provider.Settings;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -30,9 +26,6 @@ import android.graphics.Outline;
 import android.graphics.Rect;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.Drawable;
-import android.net.Uri;
-import android.provider.AlarmClock;
-import android.provider.CalendarContract;
 import android.util.AttributeSet;
 import android.util.MathUtils;
 import android.util.TypedValue;
@@ -84,7 +77,6 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
     private Switch mQsDetailHeaderSwitch;
     private ImageView mQsDetailHeaderProgress;
     private TextView mEmergencyCallsOnly;
-    private BatteryMeterView mBatteryView;
     private TextView mBatteryLevel;
     private TextView mAlarmStatus;
 
@@ -129,50 +121,9 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
 
     private float mCurrentT;
     private boolean mShowingDetail;
-    private boolean mShowBatteryText;
-    private boolean mShowBatteryTextExpanded;
-    private boolean mShowBatteryTextCharging;
-    private boolean mBatteryIsCharging;
-    private int mBatteryChargeLevel;
-
-    public void updateBatteryIconSettings() {
-        mBatteryView.updateBatteryIconSettings();
-        updateVisibilities();
-        requestCaptureValues();
-    };
 
     public StatusBarHeaderView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        loadShowBatteryTextSetting();
-    }
-
-    private void loadShowBatteryTextSetting() {
-        int batteryText = Settings.System.getInt(getContext().getContentResolver(),
-                Settings.System.STATUS_BAR_SHOW_BATTERY_PERCENT, 0);
-        int batteryStyle = Settings.System.getInt(getContext().getContentResolver(),
-                Settings.System.STATUS_BAR_BATTERY_STYLE, 0);
-        switch (batteryStyle) {
-            case 4:
-                //meterMode = BatteryMeterMode.BATTERY_METER_GONE;
-                mShowBatteryText = false;
-                mShowBatteryTextExpanded = true;
-                mShowBatteryTextCharging = true;
-                break;
-
-            case 6:
-                //meterMode = BatteryMeterMode.BATTERY_METER_TEXT;
-                mShowBatteryText = true;
-                mShowBatteryTextExpanded = true;
-                mShowBatteryTextCharging = true;
-                break;
-
-            default:
-                mShowBatteryText = (batteryText == 2);
-                // Only show when percent is not already shown inside icon
-                mShowBatteryTextExpanded = (batteryText != 1);
-                mShowBatteryTextCharging = false;
-                break;
-        }
     }
 
     @Override
@@ -182,9 +133,7 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
         mSystemIconsContainer = (ViewGroup) findViewById(R.id.system_icons_container);
         mSystemIconsSuperContainer.setOnClickListener(this);
         mDateGroup = findViewById(R.id.date_group);
-        mDateGroup.setOnClickListener(this);
         mClock = findViewById(R.id.clock);
-        mClock.setOnClickListener(this);
         mTime = (TextView) findViewById(R.id.time_view);
         mAmPm = (TextView) findViewById(R.id.am_pm_view);
         mMultiUserSwitch = (MultiUserSwitch) findViewById(R.id.multi_user_switch);
@@ -199,7 +148,6 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
         mQsDetailHeaderSwitch = (Switch) mQsDetailHeader.findViewById(android.R.id.toggle);
         mQsDetailHeaderProgress = (ImageView) findViewById(R.id.qs_detail_header_progress);
         mEmergencyCallsOnly = (TextView) findViewById(R.id.header_emergency_calls_only);
-        mBatteryView = (BatteryMeterView) findViewById(R.id.battery);
         mBatteryLevel = (TextView) findViewById(R.id.battery_level);
         mAlarmStatus = (TextView) findViewById(R.id.alarm_status);
         mAlarmStatus.setOnClickListener(this);
@@ -317,7 +265,7 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
 
     public void setBatteryController(BatteryController batteryController) {
         mBatteryController = batteryController;
-        mBatteryView.setBatteryController(batteryController);
+        ((BatteryMeterView) findViewById(R.id.battery)).setBatteryController(batteryController);
     }
 
     public void setNextAlarmController(NextAlarmController nextAlarmController) {
@@ -379,11 +327,7 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
             updateSignalClusterDetachment();
         }
         mEmergencyCallsOnly.setVisibility(mExpanded && mShowEmergencyCallsOnly ? VISIBLE : GONE);
-        loadShowBatteryTextSetting();
-        updateBatteryLevelText();
-        mBatteryLevel.setVisibility(
-                mExpanded ? (mShowBatteryTextExpanded ? View.VISIBLE : View.GONE)
-                          : (mShowBatteryText         ? View.VISIBLE : View.GONE));
+        mBatteryLevel.setVisibility(mExpanded ? View.VISIBLE : View.GONE);
     }
 
     private void updateSignalClusterDetachment() {
@@ -448,26 +392,10 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
         mAmPm.setTranslationX((rtl ? 1 : -1) * mTime.getWidth() * (1 - mTime.getScaleX()));
     }
 
-    private void updateBatteryLevelText() {
-        if (mBatteryIsCharging & mShowBatteryTextCharging) {
-            mBatteryLevel.setText(getResources().getString(
-                    R.string.battery_level_template_charging, mBatteryChargeLevel));
-        } else {
-			String percentage = NumberFormat.getPercentInstance().format((double) mBatteryChargeLevel / 100.0);
-			mBatteryLevel.setText(percentage);
-        }
-    }
-
-    public void updateBatteryLevel(int level, boolean charging) {
-        mBatteryIsCharging = charging;
-        mBatteryChargeLevel = level;
-        loadShowBatteryTextSetting();
-        updateBatteryLevelText();
-    }
-
     @Override
     public void onBatteryLevelChanged(int level, boolean pluggedIn, boolean charging) {
-        updateBatteryLevel(level, charging);
+        String percentage = NumberFormat.getPercentInstance().format((double) level / 100.0);
+        mBatteryLevel.setText(percentage);
     }
 
     @Override
@@ -573,10 +501,6 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
             if (showIntent != null && showIntent.isActivity()) {
                 mActivityStarter.startActivity(showIntent.getIntent(), true /* dismissShade */);
             }
-        } else if (v == mClock) {
-            startClockActivity();
-        } else if (v == mDateGroup) {
-            startDateActivity();
         }
     }
 
@@ -588,19 +512,6 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
     private void startBatteryActivity() {
         mActivityStarter.startActivity(new Intent(Intent.ACTION_POWER_USAGE_SUMMARY),
                 true /* dismissShade */);
-    }
-
-    private void startClockActivity() {
-        mActivityStarter.startActivity(new Intent(AlarmClock.ACTION_SHOW_ALARMS),
-                true /* dismissShade */);
-    }
-
-    private void startDateActivity() {
-        Uri.Builder builder = CalendarContract.CONTENT_URI.buildUpon();
-        builder.appendPath("time");
-        ContentUris.appendId(builder, System.currentTimeMillis());
-        Intent intent = new Intent(Intent.ACTION_VIEW).setData(builder.build());
-        mActivityStarter.startActivity(intent, true /* dismissShade */);
     }
 
     public void setQSPanel(QSPanel qsp) {
@@ -882,14 +793,4 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
                     .start();
         }
     };
-
-    @Override
-    public void onAttachedToWindow() {
-        super.onAttachedToWindow();
-    }
-
-    @Override
-    public void onDetachedFromWindow() {
-        super.onDetachedFromWindow();
-    }
 }

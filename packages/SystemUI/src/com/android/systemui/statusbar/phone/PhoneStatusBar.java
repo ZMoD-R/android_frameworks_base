@@ -415,7 +415,6 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
                             uri.equals(Settings.System.getUriFor(
                             Settings.System.STATUS_BAR_BATTERY_STYLE))) {
                         mBatteryView.updateBatteryIconSettings();
-                        mHeader.updateBatteryIconSettings();
                         mKeyguardStatusBar.updateBatteryIconSettings();
             }
             update();
@@ -912,7 +911,6 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
                 mBatteryChargeLevel = level;
                 loadShowBatteryTextSetting();
                 updateBatteryLevelText();
-                mHeader.updateBatteryLevel(level, charging);
                 mKeyguardStatusBar.updateBatteryLevel(level, charging);
             }
         });
